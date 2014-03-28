@@ -95,6 +95,7 @@ struct lpm_system_state {
 
 static struct lpm_system_state sys_state;
 static bool suspend_in_progress;
+static int64_t suspend_time;
 
 struct lpm_lookup_table {
 	uint32_t modes;
@@ -543,7 +544,7 @@ static noinline int lpm_cpu_power_select(struct cpuidle_device *dev, int *index)
 		if (latency_us < pwr->latency_us)
 			continue;
 
-		if (next_event_us)
+		if (next_event_us) {
 			if (next_event_us < pwr->latency_us)
 				continue;
 
@@ -552,6 +553,7 @@ static noinline int lpm_cpu_power_select(struct cpuidle_device *dev, int *index)
 				next_wakeup_us = next_event_us
 					- pwr->latency_us;
 			}
+		}
 
 		if (next_wakeup_us <= pwr->time_overhead_us)
 			continue;
@@ -796,6 +798,11 @@ static int lpm_suspend_enter(suspend_state_t state)
 
 static int lpm_suspend_prepare(void)
 {
+	struct timespec ts;
+
+	getnstimeofday(&ts);
+	suspend_time = timespec_to_ns(&ts);
+
 	suspend_in_progress = true;
 	msm_mpm_suspend_prepare();
 	regulator_showall_enabled();
@@ -823,6 +830,12 @@ static int lpm_suspend_prepare(void)
 
 static void lpm_suspend_wake(void)
 {
+	struct timespec ts;
+
+	getnstimeofday(&ts);
+	suspend_time = timespec_to_ns(&ts) - suspend_time;
+	msm_pm_add_stat(MSM_PM_STAT_SUSPEND, suspend_time);
+
 	msm_mpm_suspend_wake();
 	suspend_in_progress = false;
 }

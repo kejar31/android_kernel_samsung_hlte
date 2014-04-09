@@ -563,11 +563,11 @@ static noinline int lpm_cpu_power_select(struct cpuidle_device *dev, int *index)
 			if (!dev->cpu && msm_rpm_waiting_for_ack())
 					break;
 
-		if ((next_wakeup_us >> 10) > pwr->latency_us) {
+		if ((next_wakeup_us >> 10) > pwr->time_overhead_us) {
 			power = pwr->ss_power;
 		} else {
 			power = pwr->ss_power;
-			power -= (pwr->latency_us * pwr->ss_power)
+			power -= (pwr->time_overhead_us * pwr->ss_power)
 					/ next_wakeup_us;
 			power += pwr->energy_overhead / next_wakeup_us;
 		}
@@ -1124,10 +1124,6 @@ static int lpm_probe(struct platform_device *pdev)
 	get_cpu();
 	on_each_cpu(setup_broadcast_timer, (void *)true, 1);
 	put_cpu();
-	if (num_online_cpus() == 1)
-		allowed_l2_mode = MSM_SPM_L2_MODE_POWER_COLLAPSE;
-	else
-		allowed_l2_mode = default_l2_mode;
 
 	register_hotcpu_notifier(&lpm_cpu_nblk);
 
